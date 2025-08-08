@@ -28,16 +28,16 @@ const fetchResourcesFromBackend = async (authToken: string, backendUrl: string):
   while (hasMorePages) {
     try {
       const url = new URL(backendUrl);
-      url.searchParams.set('from', from.toString());
-      url.searchParams.set('size', CONFIG.PAGE_SIZE.toString());
+      url.searchParams.set("from", from.toString());
+      url.searchParams.set("size", CONFIG.PAGE_SIZE.toString());
 
       const response = await fetch(url.toString(), {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
+          "Authorization": `Bearer ${authToken}`,
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({})
+        body: JSON.stringify({}),
       });
 
       if (!response.ok) {
@@ -97,7 +97,7 @@ export const searchResources = onRequest(
       );
       response.status(200).json(searchResults);
     } catch (error) {
-      if (error instanceof Error && error.message.includes('HTTP error!')) {
+      if (error instanceof Error && error.message.includes("HTTP error!")) {
         // Extract status code from error message
         const statusMatch = error.message.match(/status: (\d+)/);
         const statusCode = statusMatch ? parseInt(statusMatch[1]) : 500;
