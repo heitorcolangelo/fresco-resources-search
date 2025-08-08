@@ -5,6 +5,7 @@ setGlobalOptions({maxInstances: 10});
 
 const CONFIG = {
   PAGE_SIZE: 500,
+  API_URL: process.env.API_URL as string,
 } as const;
 
 interface BackendResponse {
@@ -16,9 +17,13 @@ interface Resource {
   name: string;
 }
 
+interface BackendError extends Error {
+  status: number;
+}
+
 let resourcesCache: Resource[] | null = null;
 
-const fetchResourcesFromBackend = async (authToken: string, backendUrl: string): Promise<Resource[]> => {
+const fetchResourcesFromBackend = async (authToken: string): Promise<Resource[]> => {
   const allResources: Resource[] = [];
   let from = 0;
   let hasMorePages = true;
@@ -26,38 +31,38 @@ const fetchResourcesFromBackend = async (authToken: string, backendUrl: string):
   console.log("Starting to fetch all paged resources from backend...");
 
   while (hasMorePages) {
-    try {
-      const url = new URL(backendUrl);
-      url.searchParams.set("from", from.toString());
-      url.searchParams.set("size", CONFIG.PAGE_SIZE.toString());
+    console.log(`Fetching resources from ${CONFIG.API_URL} with from=${from} and size=${CONFIG.PAGE_SIZE}`);
+    const url = new URL(CONFIG.API_URL);
+    url.searchParams.set("from", from.toString());
+    url.searchParams.set("size", CONFIG.PAGE_SIZE.toString());
 
-      const response = await fetch(url.toString(), {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
-      });
+    const response = await fetch(url.toString(), {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${authToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data: BackendResponse = await response.json();
-      const fetchedResources: Resource[] = data.items;
-
-      if (fetchedResources && fetchedResources.length > 0) {
-        allResources.push(...fetchedResources);
-      }
-
-      if (!fetchedResources || fetchedResources.length < CONFIG.PAGE_SIZE) {
-        hasMorePages = false;
-      } else {
-        from += CONFIG.PAGE_SIZE;
-      }
-    } catch (error) {
+    if (!response.ok) {
+      const errorText = await response.text();
+      const error = new Error(errorText) as BackendError;
+      error.status = response.status;
       throw error;
+    }
+
+    const data: BackendResponse = await response.json();
+    const fetchedResources: Resource[] = data.items;
+
+    if (fetchedResources && fetchedResources.length > 0) {
+      allResources.push(...fetchedResources);
+    }
+
+    if (!fetchedResources || fetchedResources.length < CONFIG.PAGE_SIZE) {
+      hasMorePages = false;
+    } else {
+      from += CONFIG.PAGE_SIZE;
     }
   }
 
@@ -78,12 +83,7 @@ export const searchResources = onRequest(
 
       if (!resourcesCache) {
         console.log("Cache is empty. Fetching resources from backend...");
-        const backendUrl = request.query.backendUrl as string;
-        if (!backendUrl) {
-          response.status(400).json({error: "backendUrl parameter is required"});
-          return;
-        }
-        resourcesCache = await fetchResourcesFromBackend(clientToken, backendUrl);
+        resourcesCache = await fetchResourcesFromBackend(clientToken);
       }
 
       const query = (request.query.query as string)?.trim().toLowerCase();
@@ -97,13 +97,11 @@ export const searchResources = onRequest(
       );
       response.status(200).json(searchResults);
     } catch (error) {
-      if (error instanceof Error && error.message.includes("HTTP error!")) {
-        // Extract status code from error message
-        const statusMatch = error.message.match(/status: (\d+)/);
-        const statusCode = statusMatch ? parseInt(statusMatch[1]) : 500;
-        response.status(statusCode).json({error: error.message});
+      console.error("An error occurred:", error);
+
+      if (error instanceof Error && (error as BackendError).status) {
+        response.status((error as BackendError).status).json({error: error.message});
       } else {
-        console.error("An internal server error occurred:", error);
         response.status(500).json({error: "An internal server error occurred."});
       }
     }
