@@ -1,62 +1,33 @@
-const {
-    defineConfig,
-    globalIgnores,
-} = require("eslint/config");
-
 const globals = require("globals");
-
-const {
-    fixupConfigRules,
-    fixupPluginRules,
-} = require("@eslint/compat");
-
-const tsParser = require("@typescript-eslint/parser");
-const typescriptEslint = require("@typescript-eslint/eslint-plugin");
-const _import = require("eslint-plugin-import");
+const tseslint = require("typescript-eslint");
 const js = require("@eslint/js");
 
-const {
-    FlatCompat,
-} = require("@eslint/eslintrc");
+module.exports = tseslint.config(
+  // Global ignores
+  {
+    ignores: ["lib/", "node_modules/", "eslint.config.js"],
+  },
 
-const compat = new FlatCompat({
-    baseDirectory: __dirname,
-    recommendedConfig: js.configs.recommended,
-    allConfig: js.configs.all
-});
+  // Base recommended rules from ESLint
+  js.configs.recommended,
 
-module.exports = defineConfig([{
+  // TypeScript specific rules
+  ...tseslint.configs.recommended,
+
+  // Custom configuration for your project
+  {
     languageOptions: {
-        globals: {
-            ...globals.node,
-        },
-
-        parser: tsParser,
-        sourceType: "module",
-
-        parserOptions: {
-            project: ["tsconfig.json", "tsconfig.dev.json"],
-        },
+      globals: {
+        ...globals.node,
+      },
+      parserOptions: {
+        project: ["tsconfig.json", "tsconfig.dev.json"],
+      },
     },
-
-    extends: fixupConfigRules(compat.extends(
-        "eslint:recommended",
-        "plugin:import/errors",
-        "plugin:import/warnings",
-        "plugin:import/typescript",
-        "google",
-        "plugin:@typescript-eslint/recommended",
-    )),
-
-    plugins: {
-        "@typescript-eslint": fixupPluginRules(typescriptEslint),
-        import: fixupPluginRules(_import),
-    },
-
     rules: {
-        "quotes": ["error", "double"],
-        "import/no-unresolved": 0,
-        "indent": ["error", 2],
-        "max-len": "off",
+      "quotes": ["error", "double"],
+      "indent": ["error", 2],
+      "max-len": "off",
     },
-}, globalIgnores(["lib/**/*", "generated/**/*", "**/.eslintrc.js"])]);
+  }
+);
