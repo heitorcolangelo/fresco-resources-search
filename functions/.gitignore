@@ -8,3 +8,12 @@ typings/
 # Node.js dependency directory
 node_modules/
 *.local
+
+# Log files
+*.log
+firebase-debug.log
+
+# IDE / OS specific files
+.vscode
+.idea
+.DS_Store
