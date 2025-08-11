@@ -1,0 +1,45 @@
+name: Deploy Resource Search Function
+
+on:
+  push:
+    branches:
+      - main
+
+  # Manual trigger for PRODUCTION environment
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    # Set environment variables based on which event triggered the workflow
+    env:
+      # If it was a push to main, use STAGING secrets.
+      # If it was a manual dispatch, use PRODUCTION secrets.
+      PROJECT_ID: ${{ (github.event_name == 'push' && secrets.FIREBASE_PROJECT_ID_STAGING) || secrets.FIREBASE_PROJECT_ID_PRODUCTION }}
+      SERVICE_ACCOUNT: ${{ (github.event_name == 'push' && secrets.FIREBASE_SERVICE_ACCOUNT_STAGING) || secrets.FIREBASE_SERVICE_ACCOUNT_PRODUCTION }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: ./functions
+
+      - name: Build TypeScript Code
+        run: npm run build
+        working-directory: ./functions
+
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Deploy to Firebase
+        run: npx firebase-tools deploy --only functions --project ${{ env.PROJECT_ID }} --force
