@@ -89,12 +89,12 @@ export const getResourcesPage = onRequest(
       // Parse 'from' and 'size' query parameters
       const fromParam = request.query.from;
       const sizeParam = request.query.size;
-      const from = typeof fromParam === 'string' ? parseInt(fromParam, 10) : 0;
-      const size = typeof sizeParam === 'string' ? parseInt(sizeParam, 10) : CONFIG.PAGE_SIZE;
+      const from = typeof fromParam === "string" ? parseInt(fromParam, 10) : 0;
+      const size = typeof sizeParam === "string" ? parseInt(sizeParam, 10) : CONFIG.PAGE_SIZE;
 
 
       if (isNaN(from) || from < 0 || isNaN(size) || size <= 0 || size > 1000) {
-        response.status(400).json({ error: "Invalid 'from' or 'size' parameter. 'size' must be between 1 and 1000." });
+        response.status(400).json({ error: "Invalid 'from' or 'size' parameter. 'from' must be greater than 0 and 'size' must be between 1 and 1000." });
         return;
       }
 
