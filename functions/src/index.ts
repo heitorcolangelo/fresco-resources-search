@@ -70,7 +70,7 @@ const fetchResourcesFromBackend = async (authToken: string): Promise<Resource[]>
   return allResources;
 };
 
-export const searchResources = onRequest(
+export const getResourcesPage = onRequest(
   {region: "europe-west1"},
   async (request, response) => {
     try {
@@ -86,16 +86,22 @@ export const searchResources = onRequest(
         resourcesCache = await fetchResourcesFromBackend(clientToken);
       }
 
-      const query = (request.query.query as string)?.trim().toLowerCase();
-      if (!query) {
-        response.status(200).json([]);
+      // Parse 'from' and 'size' query parameters
+      const fromParam = request.query.from;
+      const sizeParam = request.query.size;
+      const from = typeof fromParam === 'string' ? parseInt(fromParam, 10) : 0;
+      const size = typeof sizeParam === 'string' ? parseInt(sizeParam, 10) : CONFIG.PAGE_SIZE;
+
+
+      if (isNaN(from) || from < 0 || isNaN(size) || size <= 0 || size > 1000) {
+        response.status(400).json({ error: "Invalid 'from' or 'size' parameter. 'size' must be between 1 and 1000." });
         return;
       }
 
-      const searchResults = resourcesCache.filter((resource) =>
-        resource.name.toLowerCase().includes(query)
-      );
-      response.status(200).json(searchResults);
+      const total = resourcesCache.length;
+      const items = resourcesCache.slice(from, from + size);
+
+      response.status(200).json({ items, total });
     } catch (error) {
       console.error("An error occurred:", error);
 
